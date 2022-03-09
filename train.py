@@ -13,7 +13,7 @@ def main():
             .config("spark.executor.memory", "6g").config("spark.driver.memory", "6g") \
             .config("spark.driver.maxResultSize", "6g").getOrCreate()
 
-    df = spark.read.csv('data/datasetfinal.csv', sep=',', inferSchema=True, header=True).select("Duration","Dst_bytes","Flag","Hot","Num_compromised","Count","Serror_rate","Rerror_rate","Same_srv_rate","Diff_srv_rate","Srv_count","Srv_serror_rate","Srv_rerror_rate","Srv_diff_host_rate","Dst_host_count","Dst_host_srv_count","Dst_host_same_srv_rate","Dst_host_diff_srv_rate","Dst_host_same_src_port_rate","Dst_host_srv_diff_host_rate","Dst_host_serror_rate","Dst_host_srv_serror_rate","Dst_host_rerror_rate","class","class_index")
+    df = spark.read.csv('hdfs://localhost:9000/user/sandeep/data/datasetfinal.csv', sep=',', inferSchema=True, header=True).select("Duration","Dst_bytes","Flag","Hot","Num_compromised","Count","Serror_rate","Rerror_rate","Same_srv_rate","Diff_srv_rate","Srv_count","Srv_serror_rate","Srv_rerror_rate","Srv_diff_host_rate","Dst_host_count","Dst_host_srv_count","Dst_host_same_srv_rate","Dst_host_diff_srv_rate","Dst_host_same_src_port_rate","Dst_host_srv_diff_host_rate","Dst_host_serror_rate","Dst_host_srv_serror_rate","Dst_host_rerror_rate","class","class_index")
 
     numcols = [x for (x, dataType) in df.dtypes if ((dataType =="int") | (dataType == "double") & (x != "class_index"))]
 
