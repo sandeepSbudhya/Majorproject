@@ -1,3 +1,4 @@
-data
-NSLKDD
+Pipfile
+Pipfile.lock
+updatecode.sh
 .ipynb_checkpoints

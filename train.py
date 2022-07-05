@@ -1,41 +1,47 @@
 #!/usr/bin/env python3
 
-from pyspark.mllib.feature import StandardScaler
 from pyspark.ml.classification import RandomForestClassifier
-from pyspark.ml.feature import StandardScaler, VectorAssembler 
+from pyspark.ml.feature import StandardScaler, VectorAssembler, StringIndexer
 from matplotlib.pyplot import figure
 from pyspark.sql import SparkSession
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
+from matplotlib import pyplot as plt
 
 
-def main():
-    spark = SparkSession.builder.config("spark.executor.pyspark.memory", "6g") \
-            .config("spark.executor.memory", "6g").config("spark.driver.memory", "6g") \
-            .config("spark.driver.maxResultSize", "6g").getOrCreate()
+class TrainRandomForest:
+    def __init__(self,):
+        self.spark = SparkSession.builder.config("spark.executor.memory", "5g").config("spark.driver.memory", "15g").getOrCreate()
 
-    df = spark.read.csv('hdfs://localhost:9000/user/sandeep/data/datasetfinal.csv', sep=',', inferSchema=True, header=True).select("Duration","Dst_bytes","Flag","Hot","Num_compromised","Count","Serror_rate","Rerror_rate","Same_srv_rate","Diff_srv_rate","Srv_count","Srv_serror_rate","Srv_rerror_rate","Srv_diff_host_rate","Dst_host_count","Dst_host_srv_count","Dst_host_same_srv_rate","Dst_host_diff_srv_rate","Dst_host_same_src_port_rate","Dst_host_srv_diff_host_rate","Dst_host_serror_rate","Dst_host_srv_serror_rate","Dst_host_rerror_rate","class","class_index")
+    def stringIndexerDf(self, training_file, ):
+        df = self.spark.read.csv('hdfs://master-node:9000/user/hadoopkumar/data/'+ training_file, sep=',', inferSchema=True, header=True).drop('_c1')
+        Indexer = StringIndexer(inputCol='Label', outputCol="class_index").setHandleInvalid("skip")
+        classIndexedDf = Indexer.fit(df).transform(df)
+        return classIndexedDf
 
-    numcols = [x for (x, dataType) in df.dtypes if ((dataType =="int") | (dataType == "double") & (x != "class_index"))]
-
-    
-    vector_assembler = VectorAssembler(inputCols = numcols, outputCol = "features")
-    temptrain = vector_assembler.setHandleInvalid("skip").transform(df).select("class_index","features")
-
-    df = StandardScaler(inputCol = "features", outputCol="scaledfeatures").fit(temptrain).transform(temptrain)
-
-    train, test = df.randomSplit([0.7, 0.3], seed = 2022)
-
-
-    rf = RandomForestClassifier(featuresCol = 'scaledfeatures', labelCol = 'class_index').fit(train)
-
-    predictions = rf.transform(test)
-
-    evaluator = MulticlassClassificationEvaluator( labelCol="class_index", predictionCol="prediction", metricName="accuracy")
-
-    accuracy = evaluator.evaluate(predictions)
-
-    print(accuracy)
+    def train(self, trainingDf, ):
+        numcols = [x for (x, dataType) in trainingDf.dtypes if ((dataType =="int") | (dataType == "double") & (x != "class_index"))]
+        vectorAssembledDf = VectorAssembler(inputCols = numcols, outputCol = "Features").setHandleInvalid("skip").transform(trainingDf).select("class_index","Features")
+        standardizedDf = StandardScaler(inputCol = "Features", outputCol="ScaledFeatures").fit(vectorAssembledDf).transform(vectorAssembledDf)
+        train, test = standardizedDf.randomSplit([0.7, 0.3], seed = 2022)
+        rf = RandomForestClassifier(featuresCol = 'ScaledFeatures', labelCol = 'class_index').fit(train)
+        predictions = rf.transform(test)
+        evaluator = MulticlassClassificationEvaluator( labelCol="class_index", predictionCol="prediction", metricName="accuracy")
+        accuracy = evaluator.evaluate(predictions)
+        with open('accuracy.txt', 'w') as f:
+            f.write(str(accuracy)+'\n')
+            f.close()
+        figure(figsize=(12, 10), dpi=100)
+        plt.barh(numcols, rf.featureImportances)
+        plt.savefig('featureimportances.png')
+        rf.write().overwrite().save('hdfs://master-node:9000/user/hadoopkumar/RfModel')
 
 if __name__ == "__main__":
     """ This is executed when run from the command line """
-    main()
+    trainer = TrainRandomForest()
+    df = trainer.stringIndexerDf('2018Training_Data.csv')
+    # print(df)
+    trainer.train(df)
+
+    
+   
+    
